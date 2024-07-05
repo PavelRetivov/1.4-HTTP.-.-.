@@ -1,6 +1,48 @@
+.table{
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
 .tableStyle{
-    width: 25%;
-    height: 50px;
     text-align: center;
     border:2px solid yellow;
+}
+.spanColor{
+    width: 100%;
+    height: 3vh;
+    display: block;
+}
+.buttonAdd{
+    position: relative;
+    width: 100px;
+    height: 30px;
+    border-radius: 7px;
+    border: 5px solid yellow;
+    left: 50%;
+    margin: 10px;
+    transform: translateX(-50%);
+}
+.buttonAdd:hover{
+    background-color: green;
+    transition: background-color 0.5s ease;
+}
+.inputList{
+    width: 100px;
+    height: 20px;
+}
+.modal-overlay {
+    position: fixed;
+    flex-direction: column;
+    align-items: flex-end;
+    background-color: green;
+    border-radius: 5px;
+}
+.group{
+
+}
+.red{
+    border: 5px solid red;
+}
+.green{
+    border: 5px solid green;
 }
