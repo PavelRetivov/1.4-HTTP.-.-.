@@ -158,7 +158,6 @@ class Table {
      }
    }, 
    createInputEdit: async (div)=>{
-
     const data = (await this.model.dataBase(this.config.apiUrl)).data;
     const id = this.controller.button.dataset.id;
     const needKeys = Object.entries(data[id]);
