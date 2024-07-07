@@ -467,7 +467,24 @@ updateEdit: ()=>{
    }
 
 function getAge(date){
-return new Date(date);
+    const today = new Date();
+    const birthday = new Date(date);
+
+    let years = today.getFullYear() - birthday.getFullYear();
+    let months = today.getMonth() - birthday.getMonth();
+    let days = today.getDay()  - birthday.getDay();
+
+    if (days < 0) {
+      months--;
+      days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+  }
+
+  if (months < 0) {
+      years--;
+      months += 12;
+  }
+  return `${years} років, ${months} місяців, ${days} днів`;
+
 }
 function getColorLabel(color){
   return `<span class="spanColor" style="background-color: ${color};"></span>`;
