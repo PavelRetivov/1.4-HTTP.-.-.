@@ -37,12 +37,24 @@
     background-color: green;
     border-radius: 5px;
 }
+.modal-editing{
+    position: fixed;
+    flex-direction: column;
+    align-items: flex-end;
+    background-color: yellow;
+    border-radius: 5px;
+    align-items: center;
+}
 .group{
 
 }
 .red{
+    width: 100px;
+    height: 20px;
     border: 5px solid red;
 }
 .green{
+    width: 100px;
+    height: 20px;
     border: 5px solid green;
 }

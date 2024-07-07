@@ -7,6 +7,7 @@ class Table {
     this.controller.dataTable(this.config);
     this.boundCloseModalClick = this.controller.closeModalClick.bind(this);
     this.boundKeyPress = this.controller.keyPressEnter.bind(this); 
+    this.boundKeyPressEdit = this.controller.keyPressEditEnter.bind(this);
   }
 
   view = {
@@ -60,11 +61,12 @@ class Table {
       const tr = tbody.insertRow();
       columns.map((column) => {
        const th = tr.insertCell();
+       th.dataset.id= column.title;
        th.className = 'tableStyle';
        const value = typeof column.value === 'function'? column.value(user[1]) : user[1][column.value];
        th.innerHTML = value;
       })
-      tr.appendChild(this.view.thDelete(user[0]));
+      tr.appendChild(this.view.thButtonDeleteAndAdd(user[0]));
     },
     updateTableAfterRemove: (data) => {
       const originData = Object.keys(data[0]);
@@ -98,17 +100,20 @@ class Table {
 
       return th;
     },
-    thDelete: (indexUser) => {
+    thButtonDeleteAndAdd: (indexUser) => {
       const th = document.createElement('th');
-      const button = document.createElement('button');
-  
-      th.appendChild(button);
-      th.id = 'delete';
+      const buttonDelete = document.createElement('button');
+      const buttonAdd = document.createElement('button');
+      th.appendChild(buttonDelete);
+      th.appendChild(buttonAdd);
+      th.id = 'buttonAddAndDelete';
       th.className = 'tableStyle';
-      button.textContent = 'Видалити';
-      button.dataset.id = indexUser;
-      button.onclick = this.controller.deleteItem;
-  
+      buttonDelete.textContent = 'Видалити';
+      buttonDelete.dataset.id = indexUser;
+      buttonDelete.onclick = this.controller.deleteItem;
+      buttonAdd.textContent = 'Редагувати';
+      buttonAdd.dataset.id = indexUser;
+      buttonAdd.onclick = this.controller.editUser;
       return th;
     },
     createInput: (div, column, title, value) => {
@@ -121,14 +126,24 @@ class Table {
       if(!column.label){
       input.setAttribute('placeholder', title);
       }
+      if(!column.required && column.required !== undefined){
+        input.required = column.required;
+      }else{
+        input.required = true;
+      }
+      if(column.name){
+        input.name = column.name;
+        }else{
+        input.name = value;
+        }
+      if(column.options){
+        input.setAttribute('list',column.name);
+        this.view.createOptions(column.options, input);
+      }
       if(column.type){
       input.type = column.type;
       }
-      if(column.name){
-      input.name = column.name;
-      }else{
-      input.name = value;
-      }
+      
       if(column.label){
         input.setAttribute('placeholder', input.name);
         label = document.createElement('label');
@@ -142,6 +157,35 @@ class Table {
       input.parentNode.insertBefore(label, input);
      }
    }, 
+   createInputEdit: async (div)=>{
+
+    const data = (await this.model.dataBase(this.config.apiUrl)).data;
+    const id = this.controller.button.dataset.id;
+    const needKeys = Object.entries(data[id]);
+
+    needKeys.map((value) =>{
+      const input = document.createElement('input');
+      const label = document.createElement('label');
+      input.dataset.id = value[0];
+      input.value = value[1];
+      input.className = 'inputList';
+      input.style.margin = '20px 5px 10px 20px';
+      div.appendChild(label);
+      div.appendChild(input);  
+      label.textContent = value[0];
+    })
+  
+   },
+   createOptions: (options, input) => {
+    const dataList = document.createElement('datalist');
+    input.appendChild(dataList);
+    dataList.id = input.name;
+    for(const option of options){
+      const opt = document.createElement('option');
+      opt.value = option;
+      dataList.appendChild(opt);    
+    }
+   },
    updateTableAfterAdd: (data) => {
     const originData = Object.keys(data[0]);
     const allButton = document.querySelectorAll(this.config.parent + ' button:not(.buttonAdd)');
@@ -158,6 +202,20 @@ class Table {
      }
     }
    },
+   updateTableAfterEditDate: async () => {
+    const data = (await this.model.dataBase(this.config.apiUrl)).data;
+    const tr = this.controller.button.closest('tr');
+    const tdAll = Object.values(tr.querySelectorAll('td'));
+    const id = this.controller.button.dataset.id;
+    const user = data[id];
+    const columns = this.config.columns;
+    columns.map((column, index) => {
+       const value = typeof column.value === 'function' ? column.value(user) : user[column.value];
+       if(tdAll[index].innerHTML !== value){
+        tdAll[index].innerHTML = value;
+       }
+    })
+    },
    checkId: (idData, allButton) => {
     for(const button of allButton){ 
       const id = button.dataset.id; 
@@ -181,8 +239,10 @@ class Table {
     innerHeight: window.innerHeight,
     innerWidth: window.innerWidth,
     button: null,
+    buttonEdit: null,
     press:false,
     divInput: document.createElement('div'),
+    divEdit: document.createElement('div'),
     dataTable: async (config) => {
       const data = await this.model.dataBase(config.apiUrl);
       if(data){
@@ -242,14 +302,15 @@ class Table {
       this.controller.update();
    },
    closeModalClick: (event) => {
-      if(document.querySelector('div.modal-overlay')){
-      const modal = document.querySelector('div.modal-overlay');
+      if(document.querySelector('div.modal-overlay') || document.querySelector('div.modal-editing')){
+      const modal = document.querySelector('div.modal-overlay') || document.querySelector('div.modal-editing');
       if(event.target!==this.controller.divInput && event.target !== this.controller.button && this.controller.button!==null &&
       !modal.contains(event.target)){
       if(this.controller.divInput.style.display==='flex'){
         this.controller.closeModalWindow();
         window.removeEventListener('click', this.boundCloseModalClick);
         window.removeEventListener('keypress', this.boundKeyPress);
+        window.removeEventListener('keypress', this.keyPressEditEnter);
        }
      }
   };
@@ -258,6 +319,25 @@ class Table {
     this.controller.divInput.innerHTML ='';
     this.controller.divInput.remove();
     this.controller.isOpen = !this.controller.isOpen;
+   },
+   keyPressEditEnter: async (event) => {
+      if(event.key === 'Enter'){
+        const data = (await this.model.dataBase(this.config.apiUrl)).data;
+        const id = this.controller.button.dataset.id;
+        const needKeys = Object.entries(data[id]);
+        const resData = {};
+        const inputs = document.querySelectorAll('div.modal-editing input');
+        Object.values(inputs).map((input, index) => {
+          if(typeof needKeys[index][1] == 'number'){
+            resData[input.dataset.id] = Number(input.value);
+          }else{
+            resData[input.dataset.id] = input.value; 
+          }
+        });
+        this.controller.updateDataServer(`${this.config.apiUrl}/${this.controller.button.dataset.id}`, resData);
+        this.controller.closeModalWindow();
+        window.removeEventListener('keypress', this.boundKeyPressEdit);
+      }
    },
    keyPressEnter: async (event) => {
      if(event.key === 'Enter'){
@@ -276,7 +356,7 @@ class Table {
    checkFilledCells: (inputs) =>{
     let result = true;
     inputs.forEach((input) => {
-      if(input.value === ''){
+      if(input.value === '' && input.required){
         input.className = 'red';
         result = false;
       }else{
@@ -299,22 +379,42 @@ class Table {
       this.view.updateTableAfterAdd(Object.values(data));
     }
    },
+   windowResize: () => {
+    window.addEventListener('resize', ()=>{
+      if(document.querySelector('div.modal-overlay') || document.querySelector('div.modal-editing')){
+        const positionDivInput = this.controller.divInput.getBoundingClientRect(); 
+        this.controller.innerHeight = window.innerHeight,
+        this.controller.innerWidth = window.innerWidth,
+        this.controller.divInput.style.top = `${this.controller.innerHeight/2- positionDivInput.height/2}px`;
+        this.controller.divInput.style.left = `${this.controller.innerWidth/2-positionDivInput.width/2}px`;
+      }
+    });
+   },
    update: () => {
      if(this.controller.isOpen){
       window.addEventListener('click', this.boundCloseModalClick);
       window.addEventListener('keypress', this.boundKeyPress);
-      
-
-      window.addEventListener('resize', ()=>{
-         if(document.querySelector('div.modal-overlay')){
-           const positionDivInput = this.controller.divInput.getBoundingClientRect(); 
-           this.controller.innerHeight = window.innerHeight,
-           this.controller.innerWidth = window.innerWidth,
-           this.controller.divInput.style.top = `${this.controller.innerHeight/2- positionDivInput.height/2}px`;
-           this.controller.divInput.style.left = `${this.controller.innerWidth/2-positionDivInput.width/2}px`;
-         }
-       });
+      this.controller.windowResize();
        }},
+   updateDataServer: async (apiUrl, data)=>{
+    try{
+      const result = await fetch(apiUrl, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      console.log('Response status:', result.status); 
+      console.log('Response status text:', result.statusText); 
+      console.log('Response headers:', [...result.headers]); 
+      if(result.status === 200){
+      this.view.updateTableAfterEditDate();
+     }
+    }catch(error){
+    console.log('error' + error.message);
+  }
+   },
    addDataOnServer: async (apiUrl, data) =>{
     try{
     this.controller.closeModalWindow();
@@ -325,16 +425,45 @@ class Table {
       },
       body: JSON.stringify(data)
     });
-      console.log('Response status:', result.status); // Код статуса
-      console.log('Response status text:', result.statusText); // Текст статуса
-      console.log('Response headers:', [...result.headers]); // Заголовки ответа
+      console.log('Response status:', result.status); 
+      console.log('Response status text:', result.statusText); 
+      console.log('Response headers:', [...result.headers]); 
       if(result.status === 200){
           this.controller.updateTableAfterAddDate();
       }
     }catch(error){
       console.log('error' + error.message);
     }
-      }    
+      },
+updateEdit: ()=>{
+        if(this.controller.isOpen){
+          window.addEventListener('click', this.boundCloseModalClick);
+          window.addEventListener('keypress', this.boundKeyPressEdit);
+          this.controller.windowResize();
+           }
+      },
+      editUser: (event) =>{
+        this.controller.button = event.target;
+        this.controller.divInput.className = 'modal-editing';
+        const tr = event.target.closest('tr');
+        const tdAll = tr.querySelectorAll('td');
+        if(!this.controller.isOpen){
+         this.view.createInputEdit(this.controller.divInput, tdAll);
+         const body = document.getElementsByTagName('body');
+         body[0].appendChild(this.controller.divInput);
+         this.controller.isCreate = !this.controller.isCreate;
+          this.controller.divInput.style.display = 'flex';
+          const positionDivInput = this.controller.divInput.getBoundingClientRect(); 
+          this.controller.divInput.style.top = `${this.controller.innerHeight/2- positionDivInput.height/2}px`;
+          this.controller.divInput.style.left = `${this.controller.innerWidth/2-positionDivInput.width/2}px`;
+        }
+        if(this.controller.isOpen){
+          this.controller.divInput.innerHTML = '';
+          this.controller.divInput.remove();
+        }
+        this.controller.isOpen=!this.controller.isOpen;
+        this.controller.updateEdit();
+     },
      }
    }
 
